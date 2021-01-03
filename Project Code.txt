@@ -1,0 +1,174 @@
+
+SQL> create table department(dept_no number(10),
+  2  dept_name varchar2(20),
+  3  faculty_count number(10),
+  4  constraint d_pkey primary key(dept_no));
+Table created.
+
+SQL> ed
+Wrote file afiedt.buf
+
+  1  create table roles(role_id number(10),
+  2  dept_no number(10),
+  3  count number(10),
+  4  constraint r_pkey primary key(role_id,dept_no),
+  5* constraint r_fkey foreign key(dept_no) references department(dept_no))
+  6  /
+Table created.
+
+SQL> ed
+Wrote file afiedt.buf
+
+  1  create table faculty(fid number(10),
+  2  fname varchar2(10),
+  3  mname varchar2(10),
+  4  lname varchar2(10),
+  5  dept_no number(10),
+  6  phone_no varchar2(20),
+  7  gender varchar2(1),
+  8  role_id number(10),
+  9  constraint f_pkey primary key(fid),
+ 10* constraint f_fkey1 foreign key(role_id,dept_no) references roles(role_id,dept_no))
+SQL> /
+
+Table created.
+
+SQL> alter table faculty add no_of_days_worked number(30,2);
+Table altered.
+
+SQL> create table maternity_leave(lid number(10),
+  2  fid number(10),
+  3  reason varchar2(30),
+  4  date_of_leave date,
+  5  no_of_days number(10,2),
+  6  constraint m_pkey primary key(lid),
+  7  constraint m_fkey foreign key(fid) references faculty(fid));
+
+Table created.
+
+SQL> ed
+Wrote file afiedt.buf
+
+  1  create table paternity_leave(lid number(10),
+  2  fid number(10),
+  3  reason varchar2(30),
+  4  date_of_leave date,
+  5  no_of_days number(10,2),
+  6  constraint pa_pkey primary key(lid),
+  7* constraint pa_fkey foreign key(fid) references faculty(fid))
+SQL> /
+
+Table created.
+
+SQL> ed
+Wrote file afiedt.buf
+
+  1  create table urgent_leave(lid number(10),
+  2  fid number(10),
+  3  reason varchar2(30),
+  4  date_of_leave date,
+  5  no_of_days number(10,2),
+  6  constraint ul_pkey primary key(lid),
+  7* constraint ul_fkey foreign key(fid) references faculty(fid))
+SQL> /
+
+Table created.
+
+SQL> ed
+Wrote file afiedt.buf
+
+  1  create table casual_leave(lid number(10),
+  2  fid number(10),
+  3  reason varchar2(30),
+  4  date_of_leave date,
+  5  no_of_days number(10,2),
+  6  constraint cl_pkey primary key(lid),
+  7* constraint cl_fkey foreign key(fid) references faculty(fid))
+SQL> /
+
+Table created.
+
+SQL> ed
+Wrote file afiedt.buf
+
+  1  create or replace trigger m_st2
+  2     before insert or update
+  3     on maternity_leave
+  4     for each row
+  5     declare
+  6             g varchar2(1);
+  7             d number(30,2);
+  8             begin
+  9                     select gender into g from faculty where fid=:new.fid;
+ 10                     select no_of_days_worked into d from faculty where fid=:new.fid;
+ 11                     if(g='M') then
+ 12                             raise_Application_error(-2002,'Male not applicable for maternity leave');
+ 13                     elsif(d<80) then
+ 14                             raise_Application_error(-2002,'Atleast 80 worked days required to apply for maternity_leave');
+ 15                     elsif(:new.no_of_days>90) then
+ 16                             raise_Application_error(-2002,'Only 90 days of maternity leave applicable');
+ 17                     end if;
+ 18*            end;
+ 19  /
+
+Trigger created.
+
+SQL> ed
+Wrote file afiedt.buf
+
+  1  create or replace trigger p_st2
+  2     before insert or update
+  3     on paternity_leave
+  4     for each row
+  5     declare
+  6             g varchar2(1);
+  7             d number(30,2);
+  8             begin
+  9                     select gender into g from faculty where fid=:new.fid;
+ 10                     select no_of_days_worked into d from faculty where fid=:new.fid;
+ 11                     if(g='F') then
+ 12                             raise_Application_error(-2002,'Female not applicable for paternity leave');
+ 13                     elsif(d<80) then
+ 14                             raise_Application_error(-2002,'Atleast 80 worked days required to apply for paternity_leave');
+ 15                     elsif(:new.no_of_days>42) then
+ 16                             raise_Application_error(-2002,'Only 42 days of paternity leave applicable');
+ 17                     end if;
+ 18*            end;
+SQL> /
+
+Trigger created.
+
+SQL> ed
+Wrote file afiedt.buf
+
+  1  create or replace trigger sys_st3
+  2     before insert or update or delete
+  3     on faculty
+  4     for each row
+  5     declare
+  6     begin
+  7             if(to_char(sysdate,'hh24') not between 9 and 16) then
+  8                     raise_Application_error(-2002,'Not working hours');
+  9             end if;
+ 10*    end;
+SQL> /
+
+Trigger created.
+
+
+SQL> ed
+Wrote file afiedt.buf
+
+  1  create or replace function u2(a number)
+  2  return number is
+  3  c number:=0;
+  4  begin
+  5     select count(*) into c from urgent_leave where fid=a;
+  6     if c<>0 then
+  7             select sum(no_of_days) into c from urgent_leave where fid=a;
+  8     end if;
+  9     return(c);
+ 10* end;
+SQL> /
+Function created.
+
